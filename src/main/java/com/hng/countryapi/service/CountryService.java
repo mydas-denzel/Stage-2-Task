@@ -4,6 +4,7 @@ package com.hng.countryapi.service;
 import com.hng.countryapi.model.Country;
 import com.hng.countryapi.repo.CountryRepo;
 import com.hng.countryapi.util.ImageGenerator;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -91,10 +92,30 @@ public class CountryService {
             ImageGenerator.generateSummaryImage(repository);
 
         } catch (Exception e) {
-            e.printStackTrace(); // helpful for debugging
-            throw new IOException("Failed to fetch external API data", e);
+            e.printStackTrace();
+            throw new IOException("Failed to fetch external API data: " + e.getClass().getSimpleName() + " - " + e.getMessage(), e);
         }
+
     }
+
+    @PostConstruct
+    public void disableSslVerification() {
+        try {
+            javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[]{
+                    new javax.net.ssl.X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                    }
+            };
+            javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            javax.net.ssl.HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+            System.out.println("⚠️ SSL verification disabled for debugging");
+        } catch (Exception ignored) {}
+    }
+
 
 
     public List<Country> getCountries(String region, String currency, String sort) {
