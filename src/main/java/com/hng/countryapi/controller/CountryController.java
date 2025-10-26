@@ -48,7 +48,7 @@ public class CountryController {
 
             if (countries.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "No countries found matching your criteria"));
+                        .body(Map.of("error", "Country not found"));
             }
 
             return ResponseEntity.ok(countries);
