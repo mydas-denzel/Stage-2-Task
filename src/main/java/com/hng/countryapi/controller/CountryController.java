@@ -44,7 +44,7 @@ public class CountryController {
     @GetMapping("/{name}")
     public ResponseEntity<?> getCountryByName(@PathVariable String name) {
         return service.getCountryByName(name)
-                .map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(404).body(Map.of("error", "Country not found")));
     }
 

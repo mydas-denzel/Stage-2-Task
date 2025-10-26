@@ -27,65 +27,75 @@ public class CountryService {
         String exchangeUrl = "https://open.er-api.com/v6/latest/USD";
 
         try {
-            // Fetch data
-            List<Map<String, Object>> countries = Arrays.asList(
-                    Objects.requireNonNull(restTemplate.getForObject(countriesUrl, Map[].class))
-            );
+            // Fetch JSON data
+            Map<String, Object>[] rawCountries = restTemplate.getForObject(countriesUrl, Map[].class);
             Map<String, Object> ratesResponse = restTemplate.getForObject(exchangeUrl, Map.class);
 
+            if (rawCountries == null)
+                throw new IOException("No country data received");
             if (ratesResponse == null || !ratesResponse.containsKey("rates"))
                 throw new IOException("Exchange rates unavailable");
 
             Map<String, Double> exchangeRates = (Map<String, Double>) ratesResponse.get("rates");
-
             LocalDateTime now = LocalDateTime.now();
 
-            for (Map<String, Object> c : countries) {
-                String name = (String) c.get("name");
-                String capital = (String) c.get("capital");
-                String region = (String) c.get("region");
-                Long population = c.get("population") != null ? ((Number) c.get("population")).longValue() : 0L;
-                String flag = (String) c.get("flag");
+            for (Map<String, Object> c : rawCountries) {
+                try {
+                    String name = (String) c.get("name");
+                    String capital = (String) c.get("capital");
+                    String region = (String) c.get("region");
+                    Long population = c.get("population") != null ? ((Number) c.get("population")).longValue() : 0L;
+                    String flag = (String) c.get("flag");
 
-                List<Map<String, Object>> currencies = (List<Map<String, Object>>) c.get("currencies");
-                String currencyCode = null;
-                Double exchangeRate = null;
-                Double estimatedGdp = null;
+                    // Handle currencies safely
+                    String currencyCode = null;
+                    Double exchangeRate = null;
+                    Double estimatedGdp = 0.0;
 
-                if (currencies != null && !currencies.isEmpty()) {
-                    currencyCode = (String) currencies.get(0).get("code");
-                    exchangeRate = exchangeRates.get(currencyCode);
+                    Object currField = c.get("currencies");
+                    if (currField instanceof List<?> list && !list.isEmpty()) {
+                        Object first = list.get(0);
+                        if (first instanceof Map<?, ?> map) {
+                            currencyCode = (String) map.get("code");
+                        }
+                    } else if (currField instanceof Map<?, ?> map) {
+                        currencyCode = (String) map.get("code");
+                    }
 
-                    if (exchangeRate != null && exchangeRate > 0) {
+                    if (currencyCode != null && exchangeRates.containsKey(currencyCode)) {
+                        exchangeRate = exchangeRates.get(currencyCode);
                         double multiplier = ThreadLocalRandom.current().nextDouble(1000, 2000);
                         estimatedGdp = (population * multiplier) / exchangeRate;
-                    } else {
-                        estimatedGdp = 0.0;
                     }
+
+                    Country existing = repository.findByNameIgnoreCase(name).orElse(null);
+                    Country country = existing != null ? existing : new Country();
+
+                    country.setName(name);
+                    country.setCapital(capital);
+                    country.setRegion(region);
+                    country.setPopulation(population);
+                    country.setCurrencyCode(currencyCode);
+                    country.setExchangeRate(exchangeRate);
+                    country.setEstimatedGdp(estimatedGdp);
+                    country.setFlagUrl(flag);
+                    country.setLastRefreshedAt(now);
+
+                    repository.save(country);
+
+                } catch (Exception inner) {
+                    System.err.println("Skipping malformed entry: " + c.get("name") + " - " + inner.getMessage());
                 }
-
-                Country existing = repository.findByNameIgnoreCase(name).orElse(null);
-
-                Country country = (existing != null) ? existing : new Country();
-                country.setName(name);
-                country.setCapital(capital);
-                country.setRegion(region);
-                country.setPopulation(population);
-                country.setCurrencyCode(currencyCode);
-                country.setExchangeRate(exchangeRate);
-                country.setEstimatedGdp(estimatedGdp);
-                country.setFlagUrl(flag);
-                country.setLastRefreshedAt(now);
-
-                repository.save(country);
             }
 
             ImageGenerator.generateSummaryImage(repository);
 
         } catch (Exception e) {
+            e.printStackTrace(); // helpful for debugging
             throw new IOException("Failed to fetch external API data", e);
         }
     }
+
 
     public List<Country> getCountries(String region, String currency, String sort) {
         List<Country> countries;
