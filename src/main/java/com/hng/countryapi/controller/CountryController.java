@@ -33,13 +33,38 @@ public class CountryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Country>> getCountries(
+    public ResponseEntity<?> getCountries(
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String currency,
             @RequestParam(required = false) String sort
     ) {
-        return ResponseEntity.ok(service.getCountries(region, currency, sort));
+        // Handle "null" (as a string) or empty query params
+        if ("null".equalsIgnoreCase(region)) region = null;
+        if ("null".equalsIgnoreCase(currency)) currency = null;
+        if ("null".equalsIgnoreCase(sort)) sort = null;
+
+        try {
+            List<Country> countries = service.getCountries(region, currency, sort);
+
+            if (countries.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "No countries found matching your criteria"));
+            }
+
+            return ResponseEntity.ok(countries);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of(
+                            "error", "Validation failed",
+                            "details", Map.of("sort", "Invalid sort format. Use gdp_asc or gdp_desc")
+                    ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Something went wrong", "details", e.getMessage()));
+        }
     }
+
 
     @GetMapping("/{name}")
     public ResponseEntity<?> getCountryByName(@PathVariable String name) {
