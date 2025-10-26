@@ -56,7 +56,7 @@ public class CountryController {
 
     @GetMapping("/image")
     public ResponseEntity<?> getSummaryImage() {
-        File file = new File("cache/summary.png");
+        File file = new File("/tmp/summary.png");
         if (!file.exists())
             return ResponseEntity.status(404).body(Map.of("error", "Summary image not found"));
 
