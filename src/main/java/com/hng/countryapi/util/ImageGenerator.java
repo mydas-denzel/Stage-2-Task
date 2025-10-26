@@ -20,7 +20,7 @@ public class ImageGenerator {
         System.setProperty("java.awt.headless", "true");
 
         // Create cache directory safely (works locally and in cloud)
-        Path cacheDir = Path.of("cache");
+        Path cacheDir = Path.of("tmp");
         Files.createDirectories(cacheDir);
         Path outputPath = cacheDir.resolve("summary.png");
 
