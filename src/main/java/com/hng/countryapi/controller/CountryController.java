@@ -50,9 +50,16 @@ public class CountryController {
 
     @DeleteMapping("/{name}")
     public ResponseEntity<?> deleteCountry(@PathVariable String name) {
-        service.deleteCountry(name);
-        return ResponseEntity.ok(Map.of("message", "Deleted successfully"));
+        boolean deleted = service.deleteCountry(name);
+
+        if (deleted) {
+            return ResponseEntity.ok(Map.of("message", "Deleted successfully"));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Country not found"));
+        }
     }
+
 
     @GetMapping("/image")
     public ResponseEntity<?> getSummaryImage() {

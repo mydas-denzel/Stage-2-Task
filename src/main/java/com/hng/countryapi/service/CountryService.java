@@ -138,9 +138,15 @@ public class CountryService {
         return repository.findByNameIgnoreCase(name);
     }
 
-    public void deleteCountry(String name) {
-        repository.findByNameIgnoreCase(name).ifPresent(repository::delete);
+    public boolean deleteCountry(String name) {
+        var country = repository.findByNameIgnoreCase(name);
+        if (country.isPresent()) {
+            repository.delete(country.get());
+            return true;
+        }
+        return false;
     }
+
 
     public Map<String, Object> getStatus() {
         Map<String, Object> status = new HashMap<>();
